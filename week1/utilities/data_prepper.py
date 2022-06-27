@@ -268,6 +268,8 @@ class DataPrepper:
         except:
             pass
         # IMPLEMENT_END
+        frame = pd.DataFrame(feature_results)
+        return frame.astype({'doc_id': 'int64', 'query_id': 'int64', 'sku': 'int64'})
 
     # Can try out normalizing data, but for XGb, you really don't have to since it is just finding splits
     def normalize_data(self, ranks_features_df, feature_set, normalize_type_map):
