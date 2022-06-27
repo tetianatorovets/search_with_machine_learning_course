@@ -232,22 +232,41 @@ class DataPrepper:
                                                 size=len(query_doc_ids), terms_field=terms_field)
         ##### Step Extract LTR Logged Features:
         # IMPLEMENT_START --
-        print("IMPLEMENT ME: __log_ltr_query_features: Extract log features out of the LTR:EXT response and place in a data frame")
-        # Loop over the hits structure returned by running `log_query` and then extract out the features from the response per query_id and doc id.  Also capture and return all query/doc pairs that didn't return features
-        # Your structure should look like the data frame below
-        feature_results = {}
-        feature_results["doc_id"] = []  # capture the doc id so we can join later
-        feature_results["query_id"] = []  # ^^^
-        feature_results["sku"] = []
-        feature_results["name_match"] = []
-        rng = np.random.default_rng(12345)
+        feature_names = ["name_match", "name_phrase_match", "review_count_match", "review_average_match", "artist_name_phrase_match",  "short_description_match", "long_description_match"]
+        extracted_features = {}
         for doc_id in query_doc_ids:
-            feature_results["doc_id"].append(doc_id)  # capture the doc id so we can join later
-            feature_results["query_id"].append(query_id)
-            feature_results["sku"].append(doc_id)  
-            feature_results["name_match"].append(rng.random())
-        frame = pd.DataFrame(feature_results)
-        return frame.astype({'doc_id': 'int64', 'query_id': 'int64', 'sku': 'int64'})
+            extracted_features[doc_id] = {}
+            for feature_name in feature_names:
+                extracted_features[doc_id][feature_name] = 0
+        try:
+            
+            hits = self.opensearch.search(body=log_query, index=self.index_name)["hits"]["hits"]
+            for (idx, hit) in enumerate(hits):
+                doc_id = int(hit["_id"])
+                if hit["fields"] is not None and hit["fields"]["_ltrlog"] is not None and len(hit["fields"]["_ltrlog"]) > 0:
+                    for ltr_log in hit["fields"]["_ltrlog"]:
+                        for log_entry in ltr_log["log_entry"]:
+                            if "name" in log_entry and "value" in log_entry and log_entry["name"] in feature_names:
+                                extracted_features[doc_id][log_entry["name"]] = log_entry["value"]
+
+            # Loop over the hits structure returned by running `log_query` and then extract out the features from the response per query_id and doc id.  Also capture and return all query/doc pairs that didn't return features
+            # Your structure should look like the data frame below
+            feature_results = {}
+            feature_results["doc_id"] = []  # capture the doc id so we can join later
+            feature_results["query_id"] = []  # ^^^
+            feature_results["sku"] = []
+
+            for feature_name in feature_names:
+                feature_results[feature_name] = []
+
+            for doc_id in query_doc_ids:
+                feature_results["doc_id"].append(doc_id)  # capture the doc id so we can join later
+                feature_results["query_id"].append(query_id)
+                feature_results["sku"].append(doc_id)
+                for feature_name in feature_names:
+                    feature_results[feature_name].append(extracted_features[doc_id][feature_name])
+        except:
+            pass
         # IMPLEMENT_END
 
     # Can try out normalizing data, but for XGb, you really don't have to since it is just finding splits
