@@ -50,7 +50,8 @@ def create_prior_queries(doc_ids, doc_id_weights,
 
 # Hardcoded query here.  Better to use search templates or other query config.
 def create_query(user_query, click_prior_query, filters, sort="_score", sortDir="desc", size=10, source=None):
-    query_obj = {
+     name_field = "name.synonyms" if use_syns else "name"
+     query_obj = {
         'size': size,
         "sort": [
             {sort: {"order": sortDir}}
@@ -90,8 +91,8 @@ def create_query(user_query, click_prior_query, filters, sort="_score", sortDir=
                                     "slop": "6",
                                     "minimum_should_match": "2<75%",
                                     "fields": ["name^10", "name.hyphens^10", "shortDescription^5",
-                                               "longDescription^5", "department^0.5", "sku", "manufacturer", "features",
-                                               "categoryPath", "name_synonyms"]
+                                            "longDescription^5", "department^0.5", "sku", "manufacturer", "features",
+                                            "categoryPath", "name_synonyms"]
                                 }
                             },
                             {
@@ -209,6 +210,7 @@ if __name__ == "__main__":
                          help='The OpenSearch port')
     general.add_argument('--user',
                          help='The OpenSearch admin.  If this is set, the program will prompt for password too. If not set, use default of admin/admin')
+    general.add_argument("--synonyms", default=1, help="Use Synonyms.")
 
     args = parser.parse_args()
 
@@ -218,6 +220,7 @@ if __name__ == "__main__":
 
     host = args.host
     port = args.port
+    use_syns = args.synonyms
     if args.user:
         password = getpass()
         auth = (args.user, password)
