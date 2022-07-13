@@ -49,8 +49,23 @@ df = pd.read_csv(queries_file_name)[['category', 'query']]
 df = df[df['category'].isin(categories)]
 
 # IMPLEMENT ME: Convert queries to lowercase, and optionally implement other normalization, like stemming.
-
+df['query_normalised'] = df['query'].str.lower()
+df['query_normalised'] = df['query_normalised'].apply(lambda x: x.replace('"', ''))
+df['query_normalised'] = df['query_normalised'].apply(lambda x: x.replace(r'\s+', ' '))
+# df['query_normalised'] = df['query_normalised'].apply(lambda x: [stemmer.stem(y) for y in x])
+# print(df.head())
 # IMPLEMENT ME: Roll up categories to ancestors to satisfy the minimum number of queries per category.
+
+df['category_agg'] = df['category']
+threshold = 10000
+while (df.groupby('category_agg')['query_normalised'].count().min()) < threshold:
+    df_agg = df.groupby('category_agg')['query_normalised'].count().reset_index()
+    df_agg = df_agg.merge(parents_df, how = 'inner', left_on =  df_agg.category_agg, right_on= parents_df.category)
+    df_agg['category_agg'] = np.where(df_agg['query_normalised'] < threshold, df_agg['parent'], df_agg['category'])
+    df = df.merge(df_agg[['category_agg', 'category']], how = 'inner', on = ['category'])
+    df['category_agg'] = df['category_agg_y']
+    df = df.drop(columns=['category_agg_x', 'category_agg_y'])
+
 
 # Create labels in fastText format.
 df['label'] = '__label__' + df['category']
