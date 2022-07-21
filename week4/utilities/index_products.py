@@ -21,7 +21,9 @@ logger.setLevel(logging.INFO)
 logging.basicConfig(format='%(levelname)s:%(message)s')
 
 # IMPLEMENT ME: import the sentence transformers module!
-
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+print(model)
 # NOTE: this is not a complete list of fields.  If you wish to add more, put in the appropriate XPath expression.
 #TODO: is there a way to do this using XPath/XSL Functions so that we don't have to maintain a big list?
 mappings =  [
@@ -140,6 +142,10 @@ def index_file(file, index_name, reduced=False):
         #docs.append({'_index': index_name, '_source': doc})
         docs_indexed += 1
         if docs_indexed % 200 == 0:
+            names = [doc['_source']['name'][0] for doc in docs]
+            names = model.encode(names)
+            for doc, embedded_name in zip(docs, names):
+                doc['_source']['embedding'] = embedded_name
             logger.info("Indexing")
             bulk(client, docs, request_timeout=60)
             logger.info(f'{docs_indexed} documents indexed')

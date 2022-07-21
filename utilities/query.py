@@ -13,9 +13,16 @@ import fileinput
 import logging
 import fasttext
 
+from sentence_transformers import SentenceTransformer
+
+sentence_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logging.basicConfig(format='%(levelname)s:%(message)s')
+
+
 
 # expects clicks and impressions to be in the row
 def create_prior_queries_from_group(
@@ -196,7 +203,21 @@ def search(client, user_query, index="bbuy_products", sort="_score", sortDir="de
     if response and response['hits']['hits'] and len(response['hits']['hits']) > 0:
         hits = response['hits']['hits']
         print(json.dumps(response, indent=2))
-
+def create_vector_query(user_query, num_results=10):
+    embedded_query = sentence_model.encode([user_query]).tolist()[0]
+    print(embedded_query)
+    query_obj = {
+        "size": num_results,
+        "query": {
+            "knn": {
+                "embedding": {
+                    "vector": embedded_query,
+                    "k": num_results
+                }
+            }
+        }
+    }
+    return query_obj
 
 if __name__ == "__main__":
     host = 'localhost'
@@ -212,7 +233,7 @@ if __name__ == "__main__":
                          help='The OpenSearch port')
     general.add_argument('--user',
                          help='The OpenSearch admin.  If this is set, the program will prompt for password too. If not set, use default of admin/admin')
-
+    general.add_argument('--vector', action='store_true', help="Search using Vectors")
     args = parser.parse_args()
 
     if len(vars(args)) == 0:
