@@ -66,7 +66,7 @@ while (df.groupby('category_agg')['query_normalised'].count().min()) < threshold
     df['category_agg'] = df['category_agg_y']
     df = df.drop(columns=['category_agg_x', 'category_agg_y'])
 
-
+print(len(df.groupby('category_agg')['query_normalised'].count()))
 # Create labels in fastText format.
 df['label'] = '__label__' + df['category']
 

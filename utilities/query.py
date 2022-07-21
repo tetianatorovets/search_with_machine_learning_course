@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 import pandas as pd
 import fileinput
 import logging
-
+import fasttext
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -50,8 +50,7 @@ def create_prior_queries(doc_ids, doc_id_weights,
 
 # Hardcoded query here.  Better to use search templates or other query config.
 def create_query(user_query, click_prior_query, filters, sort="_score", sortDir="desc", size=10, source=None):
-     name_field = "name.synonyms" if use_syns else "name"
-     query_obj = {
+    query_obj = {
         'size': size,
         "sort": [
             {sort: {"order": sortDir}}
@@ -91,8 +90,8 @@ def create_query(user_query, click_prior_query, filters, sort="_score", sortDir=
                                     "slop": "6",
                                     "minimum_should_match": "2<75%",
                                     "fields": ["name^10", "name.hyphens^10", "shortDescription^5",
-                                            "longDescription^5", "department^0.5", "sku", "manufacturer", "features",
-                                            "categoryPath", "name_synonyms"]
+                                               "longDescription^5", "department^0.5", "sku", "manufacturer", "features",
+                                               "categoryPath"]
                                 }
                             },
                             {
@@ -187,7 +186,10 @@ def create_query(user_query, click_prior_query, filters, sort="_score", sortDir=
     return query_obj
 
 
-def search(client, user_query, index="bbuy_products", sort=None, sortDir="desc"):
+def search(client, user_query, index="bbuy_products", sort="_score", sortDir="desc"):
+    #### W3: classify the query
+    #### W3: create filters and boosts
+    # Note: you may also want to modify the `create_query` method above
     query_obj = create_query(user_query, click_prior_query=None, filters=None, sort=sort, sortDir=sortDir, source=["name", "shortDescription"])
     logging.info(query_obj)
     response = client.search(query_obj, index=index)
@@ -210,7 +212,6 @@ if __name__ == "__main__":
                          help='The OpenSearch port')
     general.add_argument('--user',
                          help='The OpenSearch admin.  If this is set, the program will prompt for password too. If not set, use default of admin/admin')
-    general.add_argument("--synonyms", default=1, help="Use Synonyms.")
 
     args = parser.parse_args()
 
@@ -220,7 +221,6 @@ if __name__ == "__main__":
 
     host = args.host
     port = args.port
-    use_syns = args.synonyms
     if args.user:
         password = getpass()
         auth = (args.user, password)
@@ -239,15 +239,15 @@ if __name__ == "__main__":
 
     )
     index_name = args.index
+    model = fasttext.load_model("../model_week3.bin")
     query_prompt = "\nEnter your query (type 'Exit' to exit or hit ctrl-c):"
     print(query_prompt)
     for line in fileinput.input():
         query = line.rstrip()
+        cat, prob = model.predict(query, 5)
+        
         if query == "Exit":
             break
-        #### W3: classify the query
         search(client=opensearch, user_query=query, index=index_name)
 
         print(query_prompt)
-
-    
